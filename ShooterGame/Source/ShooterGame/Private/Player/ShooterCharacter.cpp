@@ -777,7 +777,32 @@ bool AShooterCharacter::ServerSetRunning_Validate(bool bNewRunning, bool bToggle
 
 void AShooterCharacter::ServerSetRunning_Implementation(bool bNewRunning, bool bToggle)
 {
+
 	SetRunning(bNewRunning, bToggle);
+}
+
+void AShooterCharacter::StartShooterTeleport(bool bNewTeleport)
+{
+	bWantsToTeleport = bNewTeleport;
+	UE_LOG(LogTemp, Warning, TEXT("shooter teleport"));
+
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerStartShooterTeleport(bNewTeleport);
+	}
+}
+
+bool AShooterCharacter::ServerStartShooterTeleport_Validate(bool bNewTeleport)
+{
+	return true;
+}
+
+void AShooterCharacter::ServerStartShooterTeleport_Implementation(bool bNewTeleport)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Server running implementation"));
+
+	//SetRunning(bNewRunning, bToggle);
+	StartShooterTeleport(bNewTeleport);
 }
 
 void AShooterCharacter::UpdateRunSounds()
@@ -884,6 +909,11 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
+
+	// Additional Actions
+	//PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnShooterTeleport);
+
+
 }
 
 
@@ -1055,6 +1085,24 @@ void AShooterCharacter::OnStartRunningToggle()
 void AShooterCharacter::OnStopRunning()
 {
 	SetRunning(false, false);
+}
+
+void AShooterCharacter::OnShooterTeleport()
+{
+	/*AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (MyPC && MyPC->IsGameInputAllowed())
+	{
+		StartShooterTeleport(true);
+	}*/
+
+	if (Controller)
+	{
+		// Limit pitch when walking or falling
+		const bool bLimitRotation = (GetCharacterMovement()->IsMovingOnGround() || GetCharacterMovement()->IsFalling());
+		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
+		const FVector Direction = FRotationMatrix(Rotation).GetScaledAxis(EAxis::X);
+		//Launch(Direction, Val * 100;
+	}
 }
 
 bool AShooterCharacter::IsRunning() const

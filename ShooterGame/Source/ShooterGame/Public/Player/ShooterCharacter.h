@@ -113,6 +113,9 @@ class AShooterCharacter : public ACharacter
 	/** [server + local] change running state */
 	void SetRunning(bool bNewRunning, bool bToggle);
 
+	/** [server + local] change teleport state */
+	void StartShooterTeleport(bool bNewTeleport);
+
 	//////////////////////////////////////////////////////////////////////////
 	// Animations
 
@@ -200,6 +203,12 @@ class AShooterCharacter : public ACharacter
 
 	/** player released run action */
 	void OnStopRunning();
+
+	//////////////////////////////////////////////////////////////////////////
+	// Custom Actions
+
+	/** player pressed teleport action */
+	void OnShooterTeleport();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
@@ -320,6 +329,8 @@ protected:
 
 	/** from gamepad running is toggled */
 	uint8 bWantsToRunToggled : 1;
+
+	uint8 bWantsToTeleport : 1;
 
 	/** current firing state */
 	uint8 bWantsToFire : 1;
@@ -478,6 +489,10 @@ protected:
 	/** update targeting state */
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerSetRunning(bool bNewRunning, bool bToggle);
+
+	/** update targeting state */
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerStartShooterTeleport(bool bNewTeleporting);
 
 	/** Builds list of points to check for pausing replication for a connection*/
 	void BuildPauseReplicationCheckPoints(TArray<FVector>& RelevancyCheckPoints);
