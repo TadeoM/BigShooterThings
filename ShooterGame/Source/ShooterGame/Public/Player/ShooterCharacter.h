@@ -13,7 +13,7 @@ class AShooterCharacter : public ACharacter
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void BeginDestroy() override;
+		virtual void BeginDestroy() override;
 
 	/** spawn inventory, setup initial variables */
 	virtual void PostInitializeComponents() override;
@@ -49,7 +49,7 @@ class AShooterCharacter : public ACharacter
 
 	/** get aim offsets */
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
-	FRotator GetAimOffsets() const;
+		FRotator GetAimOffsets() const;
 
 	/**
 	* Check if pawn is enemy if given controller.
@@ -112,9 +112,6 @@ class AShooterCharacter : public ACharacter
 
 	/** [server + local] change running state */
 	void SetRunning(bool bNewRunning, bool bToggle);
-
-	/** [server + local] change teleport state */
-	void StartShooterTeleport(bool bNewTeleport);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Animations
@@ -204,9 +201,6 @@ class AShooterCharacter : public ACharacter
 	/** player released run action */
 	void OnStopRunning();
 
-	//////////////////////////////////////////////////////////////////////////
-	// Custom Actions
-
 	/** player pressed teleport action */
 	void OnShooterTeleport();
 
@@ -218,7 +212,7 @@ class AShooterCharacter : public ACharacter
 
 	/** get currently equipped weapon */
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
-	class AShooterWeapon* GetWeapon() const;
+		class AShooterWeapon* GetWeapon() const;
 
 	/** Global notification when a character equips a weapon. Needed for replication graph. */
 	SHOOTERGAME_API static FOnShooterCharacterEquipWeapon NotifyEquipWeapon;
@@ -241,27 +235,27 @@ class AShooterCharacter : public ACharacter
 
 	/** get weapon taget modifier speed	*/
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
-	float GetTargetingSpeedModifier() const;
+		float GetTargetingSpeedModifier() const;
 
 	/** get targeting state */
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
-	bool IsTargeting() const;
+		bool IsTargeting() const;
 
 	/** get firing state */
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
-	bool IsFiring() const;
+		bool IsFiring() const;
 
 	/** get the modifier value for running speed */
 	UFUNCTION(BlueprintCallable, Category = Pawn)
-	float GetRunningSpeedModifier() const;
+		float GetRunningSpeedModifier() const;
 
 	/** get running state */
 	UFUNCTION(BlueprintCallable, Category = Pawn)
-	bool IsRunning() const;
+		bool IsRunning() const;
 
 	/** get camera view type */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	virtual bool IsFirstPerson() const;
+		virtual bool IsFirstPerson() const;
 
 	/** get max health */
 	int32 GetMaxHealth() const;
@@ -285,52 +279,50 @@ private:
 
 	/** pawn mesh: 1st person view */
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
-	USkeletalMeshComponent* Mesh1P;
+		USkeletalMeshComponent* Mesh1P;
 protected:
 
 	/** socket or bone name for attaching weapon mesh */
 	UPROPERTY(EditDefaultsOnly, Category = Inventory)
-	FName WeaponAttachPoint;
+		FName WeaponAttachPoint;
 
 	/** default inventory list */
 	UPROPERTY(EditDefaultsOnly, Category = Inventory)
-	TArray<TSubclassOf<class AShooterWeapon> > DefaultInventoryClasses;
+		TArray<TSubclassOf<class AShooterWeapon> > DefaultInventoryClasses;
 
 	/** weapons in inventory */
 	UPROPERTY(Transient, Replicated)
-	TArray<class AShooterWeapon*> Inventory;
+		TArray<class AShooterWeapon*> Inventory;
 
 	/** currently equipped weapon */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentWeapon)
-	class AShooterWeapon* CurrentWeapon;
+		class AShooterWeapon* CurrentWeapon;
 
 	/** Replicate where this pawn was last hit and damaged */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_LastTakeHitInfo)
-	struct FTakeHitInfo LastTakeHitInfo;
+		struct FTakeHitInfo LastTakeHitInfo;
 
 	/** Time at which point the last take hit info for the actor times out and won't be replicated; Used to stop join-in-progress effects all over the screen */
 	float LastTakeHitTimeTimeout;
 
 	/** modifier for max movement speed */
 	UPROPERTY(EditDefaultsOnly, Category = Inventory)
-	float TargetingSpeedModifier;
+		float TargetingSpeedModifier;
 
 	/** current targeting state */
 	UPROPERTY(Transient, Replicated)
-	uint8 bIsTargeting : 1;
+		uint8 bIsTargeting : 1;
 
 	/** modifier for max movement speed */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	float RunningSpeedModifier;
+		float RunningSpeedModifier;
 
 	/** current running state */
 	UPROPERTY(Transient, Replicated)
-	uint8 bWantsToRun : 1;
+		uint8 bWantsToRun : 1;
 
 	/** from gamepad running is toggled */
 	uint8 bWantsToRunToggled : 1;
-
-	uint8 bWantsToTeleport : 1;
 
 	/** current firing state */
 	uint8 bWantsToFire : 1;
@@ -346,47 +338,47 @@ protected:
 
 	/** material instances for setting team color in mesh (3rd person view) */
 	UPROPERTY(Transient)
-	TArray<UMaterialInstanceDynamic*> MeshMIDs;
+		TArray<UMaterialInstanceDynamic*> MeshMIDs;
 
 	/** animation played on death */
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
-	UAnimMontage* DeathAnim;
+		UAnimMontage* DeathAnim;
 
 	/** sound played on death, local player only */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* DeathSound;
+		USoundCue* DeathSound;
 
 	/** effect played on respawn */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	UParticleSystem* RespawnFX;
+		UParticleSystem* RespawnFX;
 
 	/** sound played on respawn */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* RespawnSound;
+		USoundCue* RespawnSound;
 
 	/** sound played when health is low */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* LowHealthSound;
+		USoundCue* LowHealthSound;
 
 	/** sound played when running */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* RunLoopSound;
+		USoundCue* RunLoopSound;
 
 	/** sound played when stop running */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* RunStopSound;
+		USoundCue* RunStopSound;
 
 	/** sound played when targeting state changes */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
-	USoundCue* TargetingSound;
+		USoundCue* TargetingSound;
 
 	/** used to manipulate with run loop sound */
 	UPROPERTY()
-	UAudioComponent* RunLoopAC;
+		UAudioComponent* RunLoopAC;
 
 	/** hook to looped low health sound used to stop/adjust volume */
 	UPROPERTY()
-	UAudioComponent* LowHealthWarningPlayer;
+		UAudioComponent* LowHealthWarningPlayer;
 
 	/** handles sounds for running */
 	void UpdateRunSounds();
@@ -412,11 +404,11 @@ public:
 
 	/** Identifies if pawn is in its dying state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health)
-	uint32 bIsDying : 1;
+		uint32 bIsDying : 1;
 
 	// Current health of the Pawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
-	float Health;
+		float Health;
 
 	/** Take damage, handle death */
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
@@ -444,7 +436,7 @@ public:
 	virtual void FellOutOfWorld(const class UDamageType& dmgType) override;
 
 	/** Called on the actor right before replication occurs */
-	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
+	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 protected:
 	/** notification when killed, for both the server and client. */
 	virtual void OnDeath(float KillingDamage, struct FDamageEvent const& DamageEvent, class APawn* InstigatingPawn, class AActor* DamageCauser);
@@ -460,7 +452,7 @@ protected:
 
 	/** play hit or death on client */
 	UFUNCTION()
-	void OnRep_LastTakeHitInfo();
+		void OnRep_LastTakeHitInfo();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Inventory
@@ -470,7 +462,7 @@ protected:
 
 	/** current weapon rep handler */
 	UFUNCTION()
-	void OnRep_CurrentWeapon(class AShooterWeapon* LastWeapon);
+		void OnRep_CurrentWeapon(class AShooterWeapon* LastWeapon);
 
 	/** [server] spawns default inventory */
 	void SpawnDefaultInventory();
@@ -480,19 +472,15 @@ protected:
 
 	/** equip weapon */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerEquipWeapon(class AShooterWeapon* NewWeapon);
+		void ServerEquipWeapon(class AShooterWeapon* NewWeapon);
 
 	/** update targeting state */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerSetTargeting(bool bNewTargeting);
+		void ServerSetTargeting(bool bNewTargeting);
 
 	/** update targeting state */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerSetRunning(bool bNewRunning, bool bToggle);
-
-	/** update targeting state */
-	UFUNCTION(reliable, server, WithValidation)
-	void ServerStartShooterTeleport(bool bNewTeleporting);
+		void ServerSetRunning(bool bNewRunning, bool bToggle);
 
 	/** Builds list of points to check for pausing replication for a connection*/
 	void BuildPauseReplicationCheckPoints(TArray<FVector>& RelevancyCheckPoints);

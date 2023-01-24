@@ -349,7 +349,7 @@ void AShooterCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& 
 		AShooterPlayerController* PC = Cast<AShooterPlayerController>(Controller);
 		if (PC && DamageEvent.DamageTypeClass)
 		{
-			UShooterDamageType *DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
+			UShooterDamageType* DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
 			if (DamageType && DamageType->KilledForceFeedback && PC->IsVibrationEnabled())
 			{
 				FForceFeedbackParameters FFParams;
@@ -428,7 +428,7 @@ void AShooterCharacter::PlayHit(float DamageTaken, struct FDamageEvent const& Da
 		AShooterPlayerController* PC = Cast<AShooterPlayerController>(Controller);
 		if (PC && DamageEvent.DamageTypeClass)
 		{
-			UShooterDamageType *DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
+			UShooterDamageType* DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
 			if (DamageType && DamageType->HitForceFeedback && PC->IsVibrationEnabled())
 			{
 				FForceFeedbackParameters FFParams;
@@ -777,32 +777,7 @@ bool AShooterCharacter::ServerSetRunning_Validate(bool bNewRunning, bool bToggle
 
 void AShooterCharacter::ServerSetRunning_Implementation(bool bNewRunning, bool bToggle)
 {
-
 	SetRunning(bNewRunning, bToggle);
-}
-
-void AShooterCharacter::StartShooterTeleport(bool bNewTeleport)
-{
-	bWantsToTeleport = bNewTeleport;
-	UE_LOG(LogTemp, Warning, TEXT("shooter teleport"));
-
-	if (GetLocalRole() < ROLE_Authority)
-	{
-		ServerStartShooterTeleport(bNewTeleport);
-	}
-}
-
-bool AShooterCharacter::ServerStartShooterTeleport_Validate(bool bNewTeleport)
-{
-	return true;
-}
-
-void AShooterCharacter::ServerStartShooterTeleport_Implementation(bool bNewTeleport)
-{
-	UE_LOG(LogTemp, Warning, TEXT("Server running implementation"));
-
-	//SetRunning(bNewRunning, bToggle);
-	StartShooterTeleport(bNewTeleport);
 }
 
 void AShooterCharacter::UpdateRunSounds()
@@ -910,10 +885,22 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
-	// Additional Actions
-	//PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnShooterTeleport);
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnShooterTeleport);
+}
 
+void AShooterCharacter::OnShooterTeleport()
+{
+	UShooterCharacterMovement* movementComponent = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
+	if (movementComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Is god even real"));
+		movementComponent->StartTeleport();
+	}
+	else 
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NO Shooter"));
+	}
 }
 
 
@@ -938,7 +925,7 @@ void AShooterCharacter::MoveForward(float Val)
 		const bool bLimitRotation = (GetCharacterMovement()->IsMovingOnGround() || GetCharacterMovement()->IsFalling());
 		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
 		const FVector Direction = FRotationMatrix(Rotation).GetScaledAxis(EAxis::X);
-		AddMovementInput(Direction, Val*10000);
+		AddMovementInput(Direction, Val);
 	}
 }
 
@@ -1087,24 +1074,6 @@ void AShooterCharacter::OnStopRunning()
 	SetRunning(false, false);
 }
 
-void AShooterCharacter::OnShooterTeleport()
-{
-	/*AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
-	{
-		StartShooterTeleport(true);
-	}*/
-
-	if (Controller)
-	{
-		// Limit pitch when walking or falling
-		const bool bLimitRotation = (GetCharacterMovement()->IsMovingOnGround() || GetCharacterMovement()->IsFalling());
-		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
-		const FVector Direction = FRotationMatrix(Rotation).GetScaledAxis(EAxis::X);
-		//Launch(Direction, Val * 100;
-	}
-}
-
 bool AShooterCharacter::IsRunning() const
 {
 	if (!GetCharacterMovement())
@@ -1168,10 +1137,10 @@ void AShooterCharacter::Tick(float DeltaSeconds)
 	const bool bLocallyControlled = (PC ? PC->IsLocalController() : false);
 	const uint32 UniqueID = GetUniqueID();
 	FAudioThread::RunCommandOnAudioThread([UniqueID, bLocallyControlled]()
-	{
-	    USoundNodeLocalPlayer::GetLocallyControlledActorCache().Add(UniqueID, bLocallyControlled);
-	});
-	
+		{
+			USoundNodeLocalPlayer::GetLocallyControlledActorCache().Add(UniqueID, bLocallyControlled);
+		});
+
 	TArray<FVector> PointsToTest;
 	BuildPauseReplicationCheckPoints(PointsToTest);
 
@@ -1192,9 +1161,9 @@ void AShooterCharacter::BeginDestroy()
 	{
 		const uint32 UniqueID = GetUniqueID();
 		FAudioThread::RunCommandOnAudioThread([UniqueID]()
-		{
-			USoundNodeLocalPlayer::GetLocallyControlledActorCache().Remove(UniqueID);
-		});
+			{
+				USoundNodeLocalPlayer::GetLocallyControlledActorCache().Remove(UniqueID);
+			});
 	}
 }
 
@@ -1216,7 +1185,7 @@ void AShooterCharacter::OnStopJump()
 //////////////////////////////////////////////////////////////////////////
 // Replication
 
-void AShooterCharacter::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
+void AShooterCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
 {
 	Super::PreReplication(ChangedPropertyTracker);
 
@@ -1224,7 +1193,7 @@ void AShooterCharacter::PreReplication(IRepChangedPropertyTracker & ChangedPrope
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AShooterCharacter, LastTakeHitInfo, GetWorld() && GetWorld()->GetTimeSeconds() < LastTakeHitTimeTimeout);
 }
 
-void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
+void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 

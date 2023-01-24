@@ -5,47 +5,81 @@
  */
 
 #pragma once
+#include "CoreMinimal.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "UObject/ObjectMacros.h"
+#include "Sound/SoundCue.h"
 #include "ShooterCharacterMovement.generated.h"
+
+UENUM(BlueprintType)
+enum ECustomMovementMode
+{
+	CMOVE_JETPACK = 0,
+	CMOVE_GLIDE = 1,
+	CMOVE_SPRINT = 2
+};
 
 UCLASS()
 class UShooterCharacterMovement : public UCharacterMovementComponent
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual float GetMaxSpeed() const override;
+		UShooterCharacterMovement();
 
+	friend class FSavedMove_ShooterMovement;
+
+#pragma region Overrides
+	/*virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
 	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
-protected:
-	bool bWantsToTeleport : 1;
+	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;*/
+	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
+	virtual float GetMaxSpeed() const override;
+	/*virtual float GetMaxAcceleration() const override;
+	virtual bool IsFalling() const override;
+	virtual bool IsMovingOnGround() const override;*/
+#pragma endregion
 
+	void ProcessTeleport();
+
+#pragma region Networking
+	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+#pragma endregion
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Camera")
+		UCameraComponent* cam;
+
+	float GetCurrentTeleportCooldown();
+	float GetTeleportCooldownDefault();
+
+	float fTeleportCurrentCooldown;
+	float fTeleportCooldownDefault = 1.0f;
+
+	void StartTeleport();
+	bool bWantsToTeleport : 1;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Custom|State")
 		FVector teleportDestination;
-	void ProcessTeleport();
-	void execSetTeleport(bool wantsToTeleport, FVector destination);
+
+	bool CanTeleport();
 
 	UFUNCTION(BlueprintCallable)
 		void SetTeleport(bool wantsToTeleport, FVector destination);
+
+protected:
+	void execSetTeleport(bool wantsToTeleport, FVector destination);
 
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
 		void ServerSetTeleportRPC(bool wantsToTeleport, FVector destination);
 	UFUNCTION(Client, Reliable, BlueprintCallable)
 		void ClientSetTeleportRPC(bool wantsToTeleport, FVector destination);
-
-	bool CanTeleport();
-
-private:
-	UPROPERTY(EditAnywhere, Category = "Camera")
-		UCameraComponent* cam;
 };
 
 /** FSavedMove_Character represents a saved move on the client that has been sent to the server and might need to be played back. */
-class FSavedMove_JPGMovement : public FSavedMove_Character
+class FSavedMove_ShooterMovement : public FSavedMove_Character
 {
-
-	friend class UJPGMovementComponent;
-
-
+	friend class UShooterCharacterMovement;
 public:
 	typedef FSavedMove_Character Super;
 	virtual void Clear() override;
@@ -62,10 +96,10 @@ public:
 };
 
 /** Get prediction data for a client game. Should not be used if not running as a client. Allocates the data on demand and can be overridden to allocate a custom override if desired. Result must be a FNetworkPredictionData_Client_Character. */
-class FNetworkPredictionData_Client_JPGMovement : public FNetworkPredictionData_Client_Character
+class FNetworkPredictionData_Client_ShooterMovement : public FNetworkPredictionData_Client_Character
 {
 public:
-	FNetworkPredictionData_Client_JPGMovement(const UCharacterMovementComponent& ClientMovement);
+	FNetworkPredictionData_Client_ShooterMovement(const UCharacterMovementComponent& ClientMovement);
 	typedef FNetworkPredictionData_Client_Character Super;
 	virtual FSavedMovePtr AllocateNewMove() override;
 };
