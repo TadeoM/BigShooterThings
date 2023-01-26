@@ -19,7 +19,8 @@ AShooterPickup::AShooterPickup(const FObjectInitializer& ObjectInitializer) : Su
 	PickupPSC->bAutoDestroy = false;
 	PickupPSC->SetupAttachment(RootComponent);
 
-	RespawnTime = 10.0f;
+	bCanRespawn = true;
+	RespawnTime = 2.0f;
 	bIsActive = false;
 	PickedUpBy = NULL;
 
@@ -70,7 +71,7 @@ void AShooterPickup::PickupOnTouch(class AShooterCharacter* Pawn)
 				bIsActive = false;
 				OnPickedUp();
 
-				if (RespawnTime > 0.0f)
+				if (RespawnTime > 0.0f && bCanRespawn)
 				{
 					GetWorldTimerManager().SetTimer(TimerHandle_RespawnPickup, this, &AShooterPickup::RespawnPickup, RespawnTime, false);
 				}

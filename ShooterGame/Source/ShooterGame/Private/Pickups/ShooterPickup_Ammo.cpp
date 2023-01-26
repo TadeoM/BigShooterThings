@@ -8,11 +8,18 @@
 AShooterPickup_Ammo::AShooterPickup_Ammo(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	AmmoClips = 2;
+	bCanRespawn = false;
 }
 
 bool AShooterPickup_Ammo::IsForWeapon(UClass* WeaponClass)
 {
 	return WeaponType->IsChildOf(WeaponClass);
+}
+
+void AShooterPickup_Ammo::DroppedByPlayerDeath(UClass* WeaponClass)
+{
+	bCanRespawn = false;
+	IsForWeapon(WeaponClass);
 }
 
 bool AShooterPickup_Ammo::CanBePickedUp(AShooterCharacter* TestPawn) const

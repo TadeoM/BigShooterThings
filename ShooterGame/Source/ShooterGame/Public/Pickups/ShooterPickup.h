@@ -50,6 +50,8 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_IsActive)
 	uint32 bIsActive:1;
 
+	bool bCanRespawn;
+
 	/* The character who has picked up this pickup */
 	UPROPERTY(Transient, Replicated)
 	AShooterCharacter* PickedUpBy;

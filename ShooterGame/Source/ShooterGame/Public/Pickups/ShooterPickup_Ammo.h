@@ -18,6 +18,8 @@ class AShooterPickup_Ammo : public AShooterPickup
 	virtual bool CanBePickedUp(AShooterCharacter* TestPawn) const override;
 
 	bool IsForWeapon(UClass* WeaponClass);
+public:
+	void DroppedByPlayerDeath(UClass* WeaponClass);
 
 protected:
 
