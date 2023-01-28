@@ -40,6 +40,21 @@ void AShooterPickup::BeginPlay()
 	{
 		GameMode->LevelPickups.Add(this);
 	}
+	if (!bCanRespawn) 
+	{
+		GetWorldTimerManager().SetTimer(TimerHandle_RespawnPickup, this, &AShooterPickup::DestroyOnCooldown, RespawnTime, false);
+	}
+}
+
+void AShooterPickup::DestroyOnCooldown()
+{
+	if (!bCanRespawn)
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("In Respawn"), AmmoClips);
+
+		Destroy();
+		return;
+	}
 }
 
 void AShooterPickup::NotifyActorBeginOverlap(class AActor* Other)
@@ -59,6 +74,7 @@ void AShooterPickup::GivePickupTo(class AShooterCharacter* Pawn)
 
 void AShooterPickup::PickupOnTouch(class AShooterCharacter* Pawn)
 {
+
 	if (bIsActive && Pawn && Pawn->IsAlive() && !IsPendingKill())
 	{
 		if (CanBePickedUp(Pawn))
@@ -82,6 +98,7 @@ void AShooterPickup::PickupOnTouch(class AShooterCharacter* Pawn)
 
 void AShooterPickup::RespawnPickup()
 {
+	
 	bIsActive = true;
 	PickedUpBy = NULL;
 	OnRespawned();

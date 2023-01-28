@@ -5,10 +5,11 @@
 #include "Weapons/ShooterWeapon.h"
 #include "OnlineSubsystemUtils.h"
 
+
 AShooterPickup_Ammo::AShooterPickup_Ammo(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	AmmoClips = 2;
-	bCanRespawn = false;
+	bCanRespawn = true;
 }
 
 bool AShooterPickup_Ammo::IsForWeapon(UClass* WeaponClass)
@@ -16,10 +17,11 @@ bool AShooterPickup_Ammo::IsForWeapon(UClass* WeaponClass)
 	return WeaponType->IsChildOf(WeaponClass);
 }
 
-void AShooterPickup_Ammo::DroppedByPlayerDeath(UClass* WeaponClass)
+void AShooterPickup_Ammo::DroppedByPlayerDeath(AShooterWeapon* weapon)
 {
-	bCanRespawn = false;
-	IsForWeapon(WeaponClass);
+	AmmoClips = weapon->GetCurrentAmmo() / weapon->GetAmmoPerClip();
+	UE_LOG(LogTemp, Warning, TEXT("Ammo %d"), AmmoClips);
+
 }
 
 bool AShooterPickup_Ammo::CanBePickedUp(AShooterCharacter* TestPawn) const

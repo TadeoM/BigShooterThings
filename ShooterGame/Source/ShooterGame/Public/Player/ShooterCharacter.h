@@ -3,6 +3,8 @@
 #pragma once
 
 #include "ShooterTypes.h"
+#include "Pickups/ShooterPickup_Ammo.h"
+#include "Pickups/ShooterPickup.h"
 #include "ShooterCharacter.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterEquipWeapon, AShooterCharacter*, AShooterWeapon* /* new */);
@@ -401,6 +403,9 @@ private:
 	// Damage & death
 
 public:
+	UPROPERTY(EditDefaultsOnly)
+		TSubclassOf<AActor>AmmoOnDeath;
+
 
 	/** Identifies if pawn is in its dying state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health)

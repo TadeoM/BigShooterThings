@@ -19,12 +19,59 @@ enum ECustomMovementMode
 	CMOVE_SPRINT = 2
 };
 
+class FShooterCharacterNetworkMoveData : public FCharacterNetworkMoveData
+{
+public:
+	typedef FCharacterNetworkMoveData Super;
+
+	virtual void ClientFillNetworkMoveData(const FSavedMove_Character& ClientMove, ENetworkMoveType MoveType) override;
+	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap, ENetworkMoveType MoveType) override;
+
+	uint8 MoveData_CustomMovementFlags = 0;
+};
+
+class FShooterCharacterNetworkMoveDataContainer : public FCharacterNetworkMoveDataContainer
+{
+public:
+	FShooterCharacterNetworkMoveDataContainer();
+	FShooterCharacterNetworkMoveData CustomDefaultMoveData[3];
+};
+
+class FSavedMove_ShooterMovement : public FSavedMove_Character
+{
+	friend class UShooterCharacterMovement;
+public:
+	typedef FSavedMove_Character Super;
+	virtual void Clear() override;
+	virtual uint8 GetCompressedFlags() const override;
+	virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const override;
+	virtual void SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character& ClientData) override;
+	virtual void PrepMoveFor(ACharacter* Character) override;
+
+	uint8 Saved_CustomMovementFlags;
+
+	float savedDistanceFromGround;
+	float savedDesiredThrottle;
+
+	bool savedWantsToTeleport : 1;
+	FVector savedTeleportDestination;
+};
+
+/** Get prediction data for a client game. Should not be used if not running as a client. Allocates the data on demand and can be overridden to allocate a custom override if desired. Result must be a FNetworkPredictionData_Client_Character. */
+class FNetworkPredictionData_Client_ShooterMovement : public FNetworkPredictionData_Client_Character
+{
+public:
+	FNetworkPredictionData_Client_ShooterMovement(const UCharacterMovementComponent& ClientMovement);
+	typedef FNetworkPredictionData_Client_Character Super;
+	virtual FSavedMovePtr AllocateNewMove() override;
+};
+
+/** FSavedMove_Character represents a saved move on the client that has been sent to the server and might need to be played back. */
+
 UCLASS()
 class UShooterCharacterMovement : public UCharacterMovementComponent
 {
-	GENERATED_UCLASS_BODY()
-
-		UShooterCharacterMovement();
+	GENERATED_BODY()
 
 	friend class FSavedMove_ShooterMovement;
 
@@ -47,6 +94,24 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 #pragma endregion
 
 public:
+
+	UShooterCharacterMovement();
+	FShooterCharacterNetworkMoveDataContainer customMoveDataContainer;
+
+	enum ECustomMovementFlags
+	{
+		CFLAG_Teleport = 1 << 0
+	};
+
+	uint8 customMovementFlags = 0;
+
+	virtual void ActivateCustomMovementFlag(ECustomMovementFlags flag);
+	virtual void ClearMovementFlag(ECustomMovementFlags flag);
+	bool IsCustomFlagSet(ECustomMovementFlags flag) const { return (customMovementFlags & flag) != 0; }
+
+	virtual void UpdateFromCompressedFlags(uint8 flags) override;
+	virtual void MoveAutonomous(float clientTimeStamp, float deltaTime, uint8 compressedFlags, const FVector& newAccel) override;
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 		UCameraComponent* cam;
 
@@ -55,8 +120,8 @@ public:
 
 	float fTeleportCurrentCooldown;
 	float fTeleportCooldownDefault = 1.0f;
-
-	void StartTeleport();
+	UFUNCTION(BlueprintCallable)
+		void StartTeleport();
 	bool bWantsToTeleport : 1;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Custom|State")
@@ -76,31 +141,6 @@ protected:
 		void ClientSetTeleportRPC(bool wantsToTeleport, FVector destination);
 };
 
-/** FSavedMove_Character represents a saved move on the client that has been sent to the server and might need to be played back. */
-class FSavedMove_ShooterMovement : public FSavedMove_Character
-{
-	friend class UShooterCharacterMovement;
-public:
-	typedef FSavedMove_Character Super;
-	virtual void Clear() override;
-	virtual uint8 GetCompressedFlags() const override;
-	virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const override;
-	virtual void SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character& ClientData) override;
-	virtual void PrepMoveFor(ACharacter* Character) override;
 
-	float savedDistanceFromGround;
-	float savedDesiredThrottle;
 
-	bool savedWantsToTeleport : 1;
-	FVector savedTeleportDestination;
-};
-
-/** Get prediction data for a client game. Should not be used if not running as a client. Allocates the data on demand and can be overridden to allocate a custom override if desired. Result must be a FNetworkPredictionData_Client_Character. */
-class FNetworkPredictionData_Client_ShooterMovement : public FNetworkPredictionData_Client_Character
-{
-public:
-	FNetworkPredictionData_Client_ShooterMovement(const UCharacterMovementComponent& ClientMovement);
-	typedef FNetworkPredictionData_Client_Character Super;
-	virtual FSavedMovePtr AllocateNewMove() override;
-};
 

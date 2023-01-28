@@ -541,5 +541,10 @@ protected:
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns Mesh3P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh3P() const { return Mesh3P; }
+
+public:
+
+	UPROPERTY(EditDefaultsOnly)
+		TSubclassOf<AShooterPickup_Ammo> ammoDropType;
 };
 

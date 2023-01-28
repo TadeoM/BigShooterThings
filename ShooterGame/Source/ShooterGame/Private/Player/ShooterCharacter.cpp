@@ -340,9 +340,24 @@ void AShooterCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& 
 	SetReplicatingMovement(false);
 	TearOff();
 	bIsDying = true;
-
+	
 	if (GetLocalRole() == ROLE_Authority)
 	{
+		// register on pickup list (server only), don't care about unregistering (in FinishDestroy) - no streaming
+		AShooterGameMode* GameMode = GetWorld()->GetAuthGameMode<AShooterGameMode>();
+		if (GameMode)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Weapon to drop %s"), CurrentWeapon->ammoDropType);
+			AActor* weaponActor = GetWorld()->SpawnActor<AActor>(CurrentWeapon->ammoDropType, GetActorLocation(), GetActorRotation());
+			if (weaponActor) {
+				AShooterPickup_Ammo* spawnedAmmo = Cast<AShooterPickup_Ammo>(weaponActor);
+				if (spawnedAmmo)
+				{
+					spawnedAmmo->DroppedByPlayerDeath(CurrentWeapon);
+					GameMode->LevelPickups.Add(spawnedAmmo);
+				}
+			}
+		}
 		ReplicateHit(KillingDamage, DamageEvent, PawnInstigator, DamageCauser, true);
 
 		// play the force feedback effect on the client player controller
@@ -894,12 +909,7 @@ void AShooterCharacter::OnShooterTeleport()
 
 	if (movementComponent)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Is god even real"));
 		movementComponent->StartTeleport();
-	}
-	else 
-	{
-		UE_LOG(LogTemp, Warning, TEXT("NO Shooter"));
 	}
 }
 

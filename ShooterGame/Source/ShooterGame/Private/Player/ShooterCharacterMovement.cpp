@@ -8,9 +8,9 @@
 //----------------------------------------------------------------------//
 // UPawnMovementComponent
 //----------------------------------------------------------------------//
-UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UShooterCharacterMovement::UShooterCharacterMovement()
 {
+	SetNetworkMoveDataContainer(customMoveDataContainer);
 }
 
 float UShooterCharacterMovement::GetMaxSpeed() const
@@ -52,17 +52,28 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
+void UShooterCharacterMovement::ActivateCustomMovementFlag(ECustomMovementFlags flag)
+{
+	customMovementFlags |= flag;
+}
+
+void UShooterCharacterMovement::ClearMovementFlag(ECustomMovementFlags flag)
+{
+	customMovementFlags &= ~flag;
+}
+
 float UShooterCharacterMovement::GetCurrentTeleportCooldown()
 {
 	return fTeleportCurrentCooldown;
 }
 
 float UShooterCharacterMovement::GetTeleportCooldownDefault()
-{
+{ 
 	return fTeleportCooldownDefault;
 }
 
 #pragma region Teleportation 
+
 void UShooterCharacterMovement::SetTeleport(bool wantsToTeleport, FVector destination)
 {
 	if (bWantsToTeleport != wantsToTeleport)
@@ -74,18 +85,40 @@ void UShooterCharacterMovement::SetTeleport(bool wantsToTeleport, FVector destin
 		if (!GetOwner() || !GetPawnOwner())
 			return;
 
-		if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled())
+		/*if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled())
 		{
 			ServerSetTeleportRPC(wantsToTeleport, destination);
 		}
 		else if (GetOwner()->HasAuthority() && !GetPawnOwner()->IsLocallyControlled())
 		{
 			ClientSetTeleportRPC(wantsToTeleport, destination);
-		}
+		}*/
 
 #pragma endregion
 
 	}
+}
+
+void UShooterCharacterMovement::ProcessTeleport()
+{
+	FHitResult res;
+
+	//UE_LOG(LogTemp, Warning, TEXT("Processing Teleport Function"));
+
+	//SafeMoveUpdatedComponent(teleportDestination - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
+	AActor* actor = GetOwner();
+	actor->TeleportTo(teleportDestination/* - GetOwner()->GetActorLocation()*/, GetOwner()->GetActorRotation(), false);
+	/*if (GetPawnOwner()->IsLocallyControlled())
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), teleportSound, teleportDestination);
+	}*/
+
+	/*if (GetOwner()->HasAuthority())
+	{
+		MulticastPlayTeleportSound(teleportDestination);
+	}*/
+
+	execSetTeleport(false, FVector::ZeroVector);
 }
 
 void UShooterCharacterMovement::StartTeleport()
@@ -116,33 +149,13 @@ void UShooterCharacterMovement::StartTeleport()
 	}
 
 	bWantsToTeleport = true;
+	bWantsToTeleport ? ActivateCustomMovementFlag(ECustomMovementFlags::CFLAG_Teleport) : ClearMovementFlag(ECustomMovementFlags::CFLAG_Teleport);
 	SetTeleport(bWantsToTeleport, teleportDestination);
 }
 
 bool UShooterCharacterMovement::CanTeleport()
 {
 	return fTeleportCurrentCooldown <= 0;
-}
-
-void UShooterCharacterMovement::ProcessTeleport()
-{
-	// TODO: create timer from one teleport to the next.
-	FHitResult res;
-	UE_LOG(LogTemp, Warning, TEXT("processing teleport %s"), *(teleportDestination).ToString());
-
-	SafeMoveUpdatedComponent(teleportDestination - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
-
-	/*if (GetPawnOwner()->IsLocallyControlled())
-	{
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), teleportSound, teleportDestination);
-	}*/
-
-	/*if (GetOwner()->HasAuthority())
-	{
-		MulticastPlayTeleportSound(teleportDestination);
-	}*/
-
-	execSetTeleport(false, FVector::ZeroVector);
 }
 
 void UShooterCharacterMovement::execSetTeleport(bool wantsToTeleport, FVector destination)
@@ -168,6 +181,32 @@ void UShooterCharacterMovement::ServerSetTeleportRPC_Implementation(bool wantsTo
 }
 #pragma endregion
 
+
+void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 flags)
+{
+	if (!CharacterOwner)
+	{
+		return;
+	}
+
+	Super::UpdateFromCompressedFlags(flags);
+
+	//FShooterCharacterNetworkMoveData* moveData = static_cast<FShooterCharacterNetworkMoveData*>(GetCurrentNetworkMoveData());
+	const bool bWasPressingTeleport = bWantsToTeleport;
+	/*CharacterOwner->bPressedJump = ((flags & ECustomMovementFlags::CFLAG_Teleport) != 0);
+	bWantsToCrouch = ((flags & FSavedMove_Character::FLAG_Custom_0) != 0);*/
+
+	// Detect change in jump press on the server
+	if (CharacterOwner->GetLocalRole() == ROLE_Authority)
+	{
+		//const bool bIsPressingJump = CharacterOwner->bPressedJump;
+		if (bWantsToTeleport)
+		{
+			ProcessTeleport();
+		}
+	}
+}
+
 FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionData_Client() const
 {
 	check(PawnOwner != NULL);
@@ -179,10 +218,22 @@ FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionData_Clie
 		UShooterCharacterMovement* MutableThis = const_cast<UShooterCharacterMovement*>(this);
 
 		MutableThis->ClientPredictionData = new FNetworkPredictionData_Client_ShooterMovement(*this);
-		//MutableThis->ClientPredictionData->MaxSmoothNetUpdateDist = 92.f;
+		//MutableThis->ClientPredictionData->MaxSmoothNetUpdateDist = 500.f;
 		//MutableThis->ClientPredictionData->NoSmoothNetUpdateDist = 140.f;
 	}
 	return ClientPredictionData;
+}
+
+void UShooterCharacterMovement::MoveAutonomous(float clientTimeStamp, float deltaTime, uint8 compressedFlags, const FVector& newAccel)
+{
+
+	FShooterCharacterNetworkMoveData* moveData = static_cast<FShooterCharacterNetworkMoveData*>(GetCurrentNetworkMoveData());
+	if (moveData != nullptr)
+	{
+		customMovementFlags = moveData->MoveData_CustomMovementFlags;
+	}
+
+	Super::MoveAutonomous(clientTimeStamp, deltaTime, compressedFlags, newAccel);
 }
 
 FNetworkPredictionData_Client_ShooterMovement::FNetworkPredictionData_Client_ShooterMovement(const UCharacterMovementComponent& ClientMovement)
@@ -201,6 +252,7 @@ void FSavedMove_ShooterMovement::Clear()
 {
 	Super::Clear();
 	savedWantsToTeleport = false;
+	Saved_CustomMovementFlags = 0;
 }
 
 uint8 FSavedMove_ShooterMovement::GetCompressedFlags() const
@@ -209,17 +261,29 @@ uint8 FSavedMove_ShooterMovement::GetCompressedFlags() const
 
 	if (savedWantsToTeleport)
 	{
-		result |= FLAG_WantsToCrouch;
+		result |= FLAG_Custom_0;
 	}
 	return result;
 }
 
 bool FSavedMove_ShooterMovement::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const
 {
+	FSavedMove_ShooterMovement* NewMovePtr = static_cast<FSavedMove_ShooterMovement*>(NewMove.Get());
+
+	if (Saved_CustomMovementFlags != NewMovePtr->Saved_CustomMovementFlags)
+	{
+		return false;
+	}
+
 	if (savedWantsToTeleport != ((FSavedMove_ShooterMovement*)&NewMove)->savedWantsToTeleport)
+	{
 		return false;
+	}
+
 	if (savedTeleportDestination != ((FSavedMove_ShooterMovement*)&NewMove)->savedTeleportDestination)
+	{
 		return false;
+	}
 
 	return Super::CanCombineWith(NewMove, Character, MaxDelta);
 }
@@ -230,8 +294,13 @@ void FSavedMove_ShooterMovement::SetMoveFor(ACharacter* Character, float InDelta
 	UShooterCharacterMovement* charMove = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
 	if (charMove)
 	{
+		Saved_CustomMovementFlags = charMove->customMovementFlags;
+
 		savedWantsToTeleport = charMove->bWantsToTeleport;
 		savedTeleportDestination = charMove->teleportDestination;
+		if (savedTeleportDestination.SizeSquared() > 0.0f) 
+		{
+		}
 	}
 }
 
@@ -241,7 +310,37 @@ void FSavedMove_ShooterMovement::PrepMoveFor(ACharacter* Character)
 	UShooterCharacterMovement* charMove = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
 	if (charMove)
 	{
+		charMove->customMovementFlags = Saved_CustomMovementFlags;
+
 		charMove->execSetTeleport(savedWantsToTeleport, savedTeleportDestination);
 	}
+}
+#pragma endregion
+
+#pragma region Data Containers
+void FShooterCharacterNetworkMoveData::ClientFillNetworkMoveData(const FSavedMove_Character& ClientMove, ENetworkMoveType MoveType)
+{
+	Super::ClientFillNetworkMoveData(ClientMove, MoveType); 
+
+	const FSavedMove_ShooterMovement& savedMove = static_cast<const FSavedMove_ShooterMovement&>(ClientMove);
+
+	MoveData_CustomMovementFlags = savedMove.Saved_CustomMovementFlags;
+}
+
+bool FShooterCharacterNetworkMoveData::Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap, ENetworkMoveType MoveType)
+{
+	Super::Serialize(CharacterMovement, Ar, PackageMap, MoveType);
+
+	const bool bIsSaving = Ar.IsSaving();
+
+	SerializeOptionalValue<uint8>(bIsSaving, Ar, MoveData_CustomMovementFlags, 0);
+	return !Ar.IsError();
+}
+
+FShooterCharacterNetworkMoveDataContainer::FShooterCharacterNetworkMoveDataContainer()
+{
+	NewMoveData = &CustomDefaultMoveData[0];
+	PendingMoveData = &CustomDefaultMoveData[1];
+	OldMoveData = &CustomDefaultMoveData[2];
 }
 #pragma endregion

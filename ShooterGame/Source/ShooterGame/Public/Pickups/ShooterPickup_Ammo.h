@@ -19,7 +19,7 @@ class AShooterPickup_Ammo : public AShooterPickup
 
 	bool IsForWeapon(UClass* WeaponClass);
 public:
-	void DroppedByPlayerDeath(UClass* WeaponClass);
+	void DroppedByPlayerDeath(AShooterWeapon* weapon);
 
 protected:
 

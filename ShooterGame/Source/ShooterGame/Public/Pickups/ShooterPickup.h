@@ -19,6 +19,7 @@ class AShooterPickup : public AActor
 protected:
 	/** initial setup */
 	virtual void BeginPlay() override;
+	void DestroyOnCooldown();
 
 private:
 	/** FX component */
