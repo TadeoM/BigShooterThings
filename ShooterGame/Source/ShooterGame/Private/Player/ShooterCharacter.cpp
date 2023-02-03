@@ -902,6 +902,17 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnShooterTeleport);
+	PlayerInputComponent->BindAction("Rewind", IE_Pressed, this, &AShooterCharacter::OnShooterRewind);
+
+}
+void AShooterCharacter::OnShooterRewind()
+{
+	UShooterCharacterMovement* movementComponent = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (movementComponent)
+	{
+		movementComponent->StartRewind();
+	}
 }
 
 void AShooterCharacter::OnShooterTeleport()

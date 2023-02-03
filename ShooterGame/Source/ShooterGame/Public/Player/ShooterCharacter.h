@@ -203,6 +203,9 @@ class AShooterCharacter : public ACharacter
 	/** player released run action */
 	void OnStopRunning();
 
+	/** player pressed rewind action */
+	void OnShooterRewind();
+
 	/** player pressed teleport action */
 	void OnShooterTeleport();
 

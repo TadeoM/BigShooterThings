@@ -76,6 +76,7 @@ protected:
 	void execSetSprinting(bool wantsToSprint);
 	void execSetJetpacking(float throttle);
 	void execSetGliding(bool wantsToGlide);
+	void execSetRewind(bool wantsToTeleport);
 	void execSetTeleport(bool wantsToTeleport, FVector destination);
 
 #pragma endregion
@@ -83,6 +84,7 @@ protected:
 public:
 
 	void StartTeleport();
+	void StartRewind();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Status)
 		TEnumAsByte<ECustomMovementMode> ECustomMovementMode;
@@ -147,7 +149,7 @@ public:
 		void SetGliding(bool wantsToGlide);
 
 	UFUNCTION(BlueprintCallable)
-		void SetRewind(bool wantsToTeleport, FVector destination);
+		void SetRewind(bool wantsToRewind);
 	UFUNCTION(BlueprintCallable)
 		void SetTeleport(bool wantsToTeleport, FVector destination);
 
@@ -170,9 +172,9 @@ public:
 
 
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
-		void ServerSetRewindRPC(bool wantsToTeleport, FVector destination);
+		void ServerSetRewindRPC(bool wantsToRewind);
 	UFUNCTION(Client, Reliable, BlueprintCallable)
-		void ClientSetRewindRPC(bool wantsToTeleport, FVector destination);
+		void ClientSetRewindRPC(bool wantsToRewind);
 
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
 		void ServerSetTeleportRPC(bool wantsToTeleport, FVector destination);
@@ -224,6 +226,10 @@ public:
 
 	bool bWantsToRewind : 1;
 	bool bWantsToTeleport : 1;
+
+	TArray<float> rewindTimeStampStack;
+	TArray<FVector> rewindLocationsStack;
+
 
 	float rewindCooldown;
 	float teleportCooldown;

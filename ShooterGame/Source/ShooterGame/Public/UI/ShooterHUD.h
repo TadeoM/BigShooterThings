@@ -275,6 +275,14 @@ protected:
 	UPROPERTY()
 	UTexture2D* LowHealthOverlayTexture;
 
+	/** Texture for Rewind Icon. */
+	UPROPERTY()
+		UTexture2D* RewindTexture;
+
+	/** Texture for Teleport Icon. */
+	UPROPERTY()
+		UTexture2D* TeleportTexture;
+
 	/** Large font - used for ammo display etc. */
 	UPROPERTY()
 	UFont* BigFont;

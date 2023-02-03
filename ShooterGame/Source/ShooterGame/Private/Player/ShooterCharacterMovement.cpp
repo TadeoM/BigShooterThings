@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Player/ShooterCharacterMovement.h"
+#include "ShooterCharacterMovement.h"
 #include "GameFramework/Character.h"
 #include "Engine/Classes/Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -44,6 +44,11 @@ void UShooterCharacterMovement::StartTeleport()
 	//bWantsToTeleport = true;
 	//bWantsToTeleport ? ActivateCustomMovementFlag(ECustomMovementFlags::CFLAG_Teleport) : ClearMovementFlag(ECustomMovementFlags::CFLAG_Teleport);
 	SetTeleport(true, teleportDestination);
+}
+
+void UShooterCharacterMovement::StartRewind()
+{
+	SetRewind(true);
 }
 
 
@@ -292,26 +297,37 @@ void UShooterCharacterMovement::PhysGlide(float deltaTime, int32 Iterations)
 
 void UShooterCharacterMovement::PhysRewind(float deltaTime, int32 Iterations)
 {
-
 	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
 	{
 		StartNewPhysics(deltaTime, Iterations);
 		return;
 	}
 
-	if (!bWantsToRewind || fDistanceFromGround < GliderCancelDistanceFromGround)
+	if (!bWantsToRewind)
 	{
-		SetGliding(false);
-		SetMovementMode(EMovementMode::MOVE_Falling);
+		SetMovementMode(EMovementMode::MOVE_Walking);
+		SetRewind(false);
 		StartNewPhysics(deltaTime, Iterations);
 		return;
 	}
-	if (!bWantsToRewind || fDistanceFromGround < GliderCancelDistanceFromGround)
+	// rewind arrays are not updated while teleporting, so if the array is empty, stop rewinding
+	if (rewindTimeStampStack.Num() == 0 || rewindLocationsStack.Num() == 0)
 	{
-		SetGliding(false);
+		SetMovementMode(EMovementMode::MOVE_Walking);
+		SetRewind(false);
 		StartNewPhysics(deltaTime, Iterations);
 		return;
 	}
+	
+	FHitResult res;
+	float timeStamp = rewindTimeStampStack.Last();
+	FVector newLocation = rewindLocationsStack.Last();
+
+	// rewind to the next previous position. This should be lerped, in case of teleporting ability uses 
+	SafeMoveUpdatedComponent(newLocation - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
+
+	rewindTimeStampStack.RemoveAt(rewindTimeStampStack.Num() - 1);
+	rewindLocationsStack.RemoveAt(rewindLocationsStack.Num() - 1);
 
 }
 
@@ -391,11 +407,11 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 	{
 		if (CanRewind())
 		{
-
+			SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_REWIND);
 		}
-		else 
+		else if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
 		{
-
+			SetRewind(false);
 		}
 	}
 
@@ -409,6 +425,28 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 		{
 			SetTeleport(false, FVector::ZeroVector);
 		}
+	}
+
+	// I'd like this to be a Deque, but TDeques are a UE5 Data Container :(
+	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
+	{
+		float currentTime = GetWorld()->GetTimeSeconds();
+		if (rewindTimeStampStack.Num() == 0 || rewindTimeStampStack.Last() <= currentTime - 0.2f)
+		{
+			rewindTimeStampStack.Add(currentTime);
+			rewindLocationsStack.Add(GetActorLocation());
+		}
+
+		if (rewindTimeStampStack[0] <= currentTime - 2.0f)
+		{
+			rewindTimeStampStack.RemoveAt(0);
+			rewindLocationsStack.RemoveAt(0);
+		}
+	}
+
+	if (teleportCooldown > 0)
+	{
+		teleportCooldown -= DeltaSeconds;
 	}
 
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
@@ -446,6 +484,10 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 			GetPawnOwner()->Controller->SetControlRotation(FRotator(controlDirection.GetNormalized().Pitch * -1, controlDirection.Yaw, controlDirection.Roll).Clamp());
 			GetOwner()->SetActorRotation(FRotator(0, GetOwner()->GetActorRotation().Yaw, 0));
 		}
+	}
+	if (PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CMOVE_REWIND)
+	{
+		SetRewind(false);
 	}
 
 #pragma endregion
@@ -486,6 +528,11 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 
 float UShooterCharacterMovement::GetMaxSpeed() const
 {
+	/*if (MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == ECustomMovementMode::CMOVE_REWIND)
+	{
+		return 0;
+	}*/
+
 	if (MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == ECustomMovementMode::CMOVE_GLIDE)
 	{
 		return GliderMaxSpeed;
@@ -559,6 +606,7 @@ void UShooterCharacterMovement::ProcessTeleport()
 	FHitResult res;
 
 	SafeMoveUpdatedComponent(teleportDestination - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
+	teleportCooldown = teleportTimerDefault;
 
 	if (GetPawnOwner()->IsLocallyControlled())
 	{
@@ -628,6 +676,31 @@ void UShooterCharacterMovement::SetGliding(bool wantsToGlide)
 		else if (GetOwner()->HasAuthority() && !GetPawnOwner()->IsLocallyControlled())
 		{
 			ClientSetGlidingRPC(wantsToGlide);
+		}
+
+#pragma endregion
+
+	}
+}
+
+void UShooterCharacterMovement::SetRewind(bool wantsToRewind)
+{
+	if (bWantsToRewind != wantsToRewind)
+	{
+		execSetRewind(wantsToRewind);
+
+#pragma region Networking
+
+		if (!GetOwner() || !GetPawnOwner())
+			return;
+
+		if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled())
+		{
+			ServerSetRewindRPC(wantsToRewind);
+		}
+		else if (GetOwner()->HasAuthority() && !GetPawnOwner()->IsLocallyControlled())
+		{
+			ClientSetRewindRPC(wantsToRewind);
 		}
 
 #pragma endregion
@@ -706,7 +779,7 @@ void UShooterCharacterMovement::execSetGliding(bool wantsToGlide)
 	bWantsToGlide = wantsToGlide;
 }
 
-void UShooterCharacterMovement::execSetTeleport(bool wantsToRewind, FVector destination)
+void UShooterCharacterMovement::execSetRewind(bool wantsToRewind)
 {
 	bWantsToRewind = wantsToRewind;
 }
@@ -715,10 +788,6 @@ void UShooterCharacterMovement::execSetTeleport(bool wantsToTeleport, FVector de
 {
 	bWantsToTeleport = wantsToTeleport;
 	teleportDestination = destination;
-	if (teleportCooldown <= 0)
-	{
-		teleportCooldown = teleportTimerDefault;
-	}
 }
 
 #pragma endregion
@@ -784,19 +853,19 @@ void UShooterCharacterMovement::ServerSetSprintingRPC_Implementation(bool wantsT
 
 #pragma region Rewind Replication
 
-void UShooterCharacterMovement::ClientSetRewindRPC_Implementation(bool wantsToTeleport, FVector destination)
+void UShooterCharacterMovement::ClientSetRewindRPC_Implementation(bool wantsToRewind)
 {
-	execSetRewind(wantsToTeleport, destination);
+	execSetRewind(wantsToRewind);
 }
 
-bool UShooterCharacterMovement::ServerSetRewindRPC_Validate(bool wantsToTeleport, FVector destination)
+bool UShooterCharacterMovement::ServerSetRewindRPC_Validate(bool wantsToTeleport)
 {
 	return true;
 }
 
-void UShooterCharacterMovement::ServerSetRewindRPC_Implementation(bool wantsToTeleport, FVector destination)
+void UShooterCharacterMovement::ServerSetRewindRPC_Implementation(bool wantsToRewind)
 {
-	execSetRewind(wantsToTeleport, destination);
+	execSetRewind(wantsToRewind);
 }
 
 #pragma endregion
@@ -850,7 +919,7 @@ bool UShooterCharacterMovement::CanRewind()
 
 bool UShooterCharacterMovement::CanTeleport()
 {
-	return teleportCooldown;
+	return teleportCooldown <= 0.f;
 }
 
 #pragma endregion
@@ -930,6 +999,7 @@ void FSavedMove_ShooterCharacterMovement::Clear()
 	savedDesiredThrottle = 0;
 	savedWantsToGlide = false;
 	savedWantsToSprint = false;
+	savedWantsToRewind = false;
 }
 
 uint8 FSavedMove_ShooterCharacterMovement::GetCompressedFlags() const
@@ -948,6 +1018,10 @@ bool FSavedMove_ShooterCharacterMovement::CanCombineWith(const FSavedMovePtr& Ne
 	if (savedWantsToSprint != ((FSavedMove_ShooterCharacterMovement*)&NewMove)->savedWantsToSprint)
 		return false;
 	if (savedWantsToGlide != ((FSavedMove_ShooterCharacterMovement*)&NewMove)->savedWantsToGlide)
+		return false;
+	if (savedWantsToRewind != ((FSavedMove_ShooterCharacterMovement*)&NewMove)->savedWantsToRewind)
+		return false;
+	if (savedRewindDestination != ((FSavedMove_ShooterCharacterMovement*)&NewMove)->savedRewindDestination)
 		return false;
 	if (savedWantsToTeleport != ((FSavedMove_ShooterCharacterMovement*)&NewMove)->savedWantsToTeleport)
 		return false;
@@ -968,6 +1042,8 @@ void FSavedMove_ShooterCharacterMovement::SetMoveFor(ACharacter* Character, floa
 		savedDesiredThrottle = CharMov->fDesiredThrottle;
 		savedWantsToSprint = CharMov->bWantsToSprint;
 		savedWantsToGlide = CharMov->bWantsToGlide;
+		savedWantsToRewind = CharMov->bWantsToRewind;
+		savedRewindDestination = CharMov->rewindDestination;
 		savedWantsToTeleport = CharMov->bWantsToTeleport;
 		savedTeleportDestination = CharMov->teleportDestination;
 	}
@@ -986,6 +1062,8 @@ void FSavedMove_ShooterCharacterMovement::PrepMoveFor(ACharacter* Character)
 		CharMov->bWantsToSprint = savedWantsToSprint;
 		CharMov->bWantsToGlide = savedWantsToGlide;
 		CharMov->execSetTeleport(savedWantsToGlide, savedTeleportDestination);
+		CharMov->bWantsToRewind = savedWantsToRewind;
+		CharMov->execSetRewind(savedWantsToRewind);
 	}
 }
 

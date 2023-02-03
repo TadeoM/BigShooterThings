@@ -37,6 +37,8 @@ AShooterHUD::AShooterHUD(const FObjectInitializer& ObjectInitializer) : Super(Ob
 	static ConstructorHelpers::FObjectFinder<UTexture2D> HUDMainTextureOb(TEXT("/Game/UI/HUD/HUDMain"));
 	static ConstructorHelpers::FObjectFinder<UTexture2D> HUDAssets02TextureOb(TEXT("/Game/UI/HUD/HUDAssets02"));
 	static ConstructorHelpers::FObjectFinder<UTexture2D> LowHealthOverlayTextureOb(TEXT("/Game/UI/HUD/LowHealthOverlay"));
+	static ConstructorHelpers::FObjectFinder<UTexture2D> RewindTextureOb(TEXT("/Game/UI/HUD/RewindIcon"));
+	static ConstructorHelpers::FObjectFinder<UTexture2D> TeleportTextureOb(TEXT("/Game/UI/HUD/TeleportIcon"));
 
 	// Fonts are not included in dedicated server builds.
 	#if !UE_SERVER
