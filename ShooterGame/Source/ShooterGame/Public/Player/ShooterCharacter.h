@@ -15,7 +15,9 @@ class AShooterCharacter : public ACharacter
 {
 	GENERATED_UCLASS_BODY()
 
-		virtual void BeginDestroy() override;
+	friend class UShooterCharacterMovement;
+	
+	virtual void BeginDestroy() override;
 
 	/** spawn inventory, setup initial variables */
 	virtual void PostInitializeComponents() override;
@@ -412,6 +414,7 @@ public:
 	UPROPERTY(EditDefaultsOnly)
 		TSubclassOf<AActor>AmmoOnDeath;
 
+	
 
 	/** Identifies if pawn is in its dying state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health)
@@ -449,6 +452,10 @@ public:
 	/** Called on the actor right before replication occurs */
 	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 protected:
+
+	void SetHealth(float val) { Health = val; }
+	float GetHealth() { return Health; }
+
 	/** notification when killed, for both the server and client. */
 	virtual void OnDeath(float KillingDamage, struct FDamageEvent const& DamageEvent, class APawn* InstigatingPawn, class AActor* DamageCauser);
 

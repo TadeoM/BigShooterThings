@@ -11,13 +11,10 @@
 
 UShooterCharacterMovement::UShooterCharacterMovement()
 {
-	static ConstructorHelpers::FObjectFinder<UMaterial> CharacterBaseMaterialOb(TEXT("/Characters/Materials/HeroTPP"));
-	static ConstructorHelpers::FObjectFinder<UMaterial> CharacterRewindingMaterialOb(TEXT("/Characters/Materials/HeroTPPRewinding"));
-	charBaseMaterial = CharacterBaseMaterialOb.Object;
-	charReindMaterial = CharacterRewindingMaterialOb.Object;
-
-	rewindLerpInterval = 0.1f;
+	rewindLerpInterval = 0.05f;
 }
+
+// sets the teleport location at the start of teleporting, otherwise the calculation is done more than once
 void UShooterCharacterMovement::StartTeleport()
 {
 	AActor* actor = GetOwner();
@@ -42,7 +39,6 @@ void UShooterCharacterMovement::StartTeleport()
 			end = hit.Location - (Direction * 50);
 		}
 		teleportDestination = end;
-		DrawDebugLine(GetWorld(), start, end, FColor::Blue, false, 2.0f, 0.0f, 10.0f);
 	}
 
 	SetTeleport(true, teleportDestination);
@@ -50,12 +46,14 @@ void UShooterCharacterMovement::StartTeleport()
 
 void UShooterCharacterMovement::StartRewind()
 {
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetOwner()->GetName());
+
 	SetRewind(true);
 }
 
-
 #pragma region Movement Mode Implementations
 
+// determine what custom mode to us
 void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations)
 {
 	if (CustomMovementMode == ECustomMovementMode::CMOVE_REWIND)
@@ -73,22 +71,7 @@ void UShooterCharacterMovement::PhysRewind(float deltaTime, int32 Iterations)
 		return;
 	}
 
-	if (!bWantsToRewind)
-	{
-		SetMovementMode(EMovementMode::MOVE_Walking);
-		SetRewind(false);
-		StartNewPhysics(deltaTime, Iterations);
-		return;
-	}
-
-	// rewind arrays are not updated while teleporting, so if the array is empty, stop rewinding
-	if (rewindTimeStampStack.Num() == 0 || rewindLocationsStack.Num() == 0)
-	{
-		SetMovementMode(EMovementMode::MOVE_Walking);
-		SetRewind(false);
-		StartNewPhysics(deltaTime, Iterations);
-		return;
-	}
+	// lerp to the next saved location
 	FHitResult res;
 	FVector finalPos = rewindLocationsStack.Last();
 
@@ -96,20 +79,25 @@ void UShooterCharacterMovement::PhysRewind(float deltaTime, int32 Iterations)
 	
 	float rewindCurrentAlpha = rewindLerpCurrentTime / rewindLerpInterval;
 	FVector lerpedNewPos = FMath::Lerp(lerpStartPos, finalPos, rewindCurrentAlpha);
-	UE_LOG(LogTemp, Warning, TEXT("%s: %s"), *GetOwner()->GetName(), *lerpedNewPos.ToString());
 
 	// rewind to the next previous position. This should be lerped, in case of teleporting ability uses 
 	SafeMoveUpdatedComponent(lerpedNewPos - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
 
+	// when we reach the end of the lerp, remove the location we were moving towards
 	if (rewindCurrentAlpha >= 1.0f)
 	{
-		// one last teleport to the last location to make sure it's 100% accurate
-		//SafeMoveUpdatedComponent(rewindLocationsStack.Last() - GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation(), false, res, ETeleportType::TeleportPhysics);
-		
 		lerpStartPos = GetOwner()->GetActorLocation();
 		rewindLerpCurrentTime = 0.0f;
 		rewindTimeStampStack.RemoveAt(rewindTimeStampStack.Num() - 1);
 		rewindLocationsStack.RemoveAt(rewindLocationsStack.Num() - 1);
+	}
+
+	// rewind arrays are not updated while teleporting, so if the array is empty, stop rewinding
+	if (rewindTimeStampStack.Num() == 0 || rewindLocationsStack.Num() == 0)
+	{
+		SetMovementMode(EMovementMode::MOVE_Walking);
+		StartNewPhysics(deltaTime, Iterations);
+		return;
 	}
 }
 
@@ -119,6 +107,11 @@ void UShooterCharacterMovement::PhysRewind(float deltaTime, int32 Iterations)
 
 void UShooterCharacterMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	TArray<USkeletalMeshComponent*> Components;
+	GetOwner()->GetComponents<USkeletalMeshComponent>(Components);
+	USkeletalMeshComponent* StaticMeshComponent = Components[0];
+	StaticMeshComponent->SetVisibility(!IsRewinding());
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
@@ -137,20 +130,33 @@ void UShooterCharacterMovement::CooldownTick(float DeltaSeconds)
 void UShooterCharacterMovement::RewindDataTick(float DeltaSeconds)
 {
 	// I'd like this to be a Deque, but TDeques are a UE5 Data Container :(
-	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
+	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND) && !IsRewinding())
 	{
-		float currentTime = GetWorld()->GetTimeSeconds();
+		float currentTime = GetWorld()->GetRealTimeSeconds();
 		if(rewindTimeStampStack.Num() == 0 
 			|| (rewindTimeStampStack.Last() <= currentTime - .1f && FVector::Distance(rewindLocationsStack.Last(), GetActorLocation()) > 100.0f))
 		{
-				rewindTimeStampStack.Add(currentTime);
-				rewindLocationsStack.Add(GetActorLocation());
+			rewindTimeStampStack.Add(currentTime);
+			rewindLocationsStack.Add(GetActorLocation());
 		}
 
 		if (rewindTimeStampStack[0] <= currentTime - 2.0f)
 		{
 			rewindTimeStampStack.RemoveAt(0);
 			rewindLocationsStack.RemoveAt(0);
+		}
+
+		if (rewindHealthTimestampStack.Num() == 0
+			|| (rewindHealthTimestampStack.Last() <= currentTime - .1f))
+		{
+			rewindHealthTimestampStack.Add(currentTime);
+			rewindHealthStack.Add(Cast<AShooterCharacter>(GetOwner())->GetHealth());
+		}
+
+		if (rewindHealthTimestampStack[0] <= currentTime - 2.0f)
+		{
+			rewindHealthTimestampStack.RemoveAt(0);
+			rewindHealthStack.RemoveAt(0);
 		}
 	}
 }
@@ -159,6 +165,7 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 {
 	CooldownTick(DeltaSeconds);
 	RewindDataTick(DeltaSeconds);
+	
 
 	if (bWantsToRewind)
 	{
@@ -166,11 +173,15 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 		{
 			SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_REWIND);
 
+			Cast<AShooterCharacter>(GetOwner())->SetHealth(rewindHealthStack[0]);
+
+			rewindHealthTimestampStack.Empty();
+			rewindHealthStack.Empty();
+
 			rewindCooldown = rewindCooldownDefault;
 			lerpStartPos = GetOwner()->GetActorLocation();
 			rewindLerpCurrentTime = 0.f;
 		}
-		// might be unecessary, move once confirmed
 		else if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
 		{
 			SetRewind(false);
@@ -189,8 +200,6 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 		}
 	}
 
-
-
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
@@ -206,9 +215,14 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 
 #pragma region Leaving State Handlers
 
-	if (PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CMOVE_REWIND)
+	if (PreviousMovementMode == EMovementMode::MOVE_Custom
+		&& PreviousCustomMode == ECustomMovementMode::CMOVE_REWIND) 
 	{
 		SetRewind(false);
+		TArray<USkeletalMeshComponent*> Components;
+		GetOwner()->GetComponents<USkeletalMeshComponent>(Components);
+		USkeletalMeshComponent* StaticMeshComponent = Components[0];
+		StaticMeshComponent->SetVisibility(true);
 	}
 
 #pragma endregion
@@ -217,17 +231,15 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 
 	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
 	{
-		TArray<UStaticMeshComponent*> Components;
-		GetOwner()->GetComponents<UStaticMeshComponent>(Components);
-		for (int32 i = 0; i < Components.Num(); i++)
-		{
-			UStaticMeshComponent* StaticMeshComponent = Components[i];
-			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			//StaticMesh->SetMaterial();
-		}
+		UE_LOG(LogTemp, Warning, TEXT("Rewinding"));
+		TArray<USkeletalMeshComponent*> Components;
+		GetOwner()->GetComponents<USkeletalMeshComponent>(Components);
+		USkeletalMeshComponent* StaticMeshComponent = Components[0];
+		StaticMeshComponent->SetVisibility(false);
 	}
 
 #pragma endregion
+
 	if (!suppressSuperNotification)
 		Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 	else

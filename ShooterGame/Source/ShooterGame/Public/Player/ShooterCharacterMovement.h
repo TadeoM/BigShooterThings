@@ -28,6 +28,7 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 	UShooterCharacterMovement();
 
 	friend class FSavedMove_ShooterCharacterMovement;
+	friend class AShooterCharacter;
 
 #pragma region Overrides
 
@@ -68,8 +69,13 @@ protected:
 
 #pragma endregion
 
-	UMaterial* charBaseMaterial;
-	UMaterial* charReindMaterial;
+	//UPROPERTY(VisibleAnywhere)
+	//	UStaticMeshComponent* StaticMesh;
+
+	UPROPERTY(EditDefaultsOnly, Category = Materials)
+		UMaterialInterface* DefaultMaterial;
+	UPROPERTY(EditDefaultsOnly, Category = Materials)
+		UMaterialInterface* RewindMaterial;
 
 	FVector lerpStartPos;
 	float rewindLerpCurrentTime;
@@ -145,6 +151,9 @@ public:
 
 	TArray<float> rewindTimeStampStack;
 	TArray<FVector> rewindLocationsStack;
+
+	TArray<float> rewindHealthTimestampStack;
+	TArray<float> rewindHealthStack;
 
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Custom|State")
