@@ -133,6 +133,9 @@ class AShooterCharacter : public ACharacter
 	/** setup pawn specific input handlers */
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 
+	virtual void AddControllerYawInput(float val) override;
+	virtual void AddControllerPitchInput(float val) override;
+
 	/**
 	* Handle analog trigger for firing
 	*

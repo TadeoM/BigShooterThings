@@ -68,9 +68,6 @@ protected:
 
 #pragma endregion
 
-	UMaterial* charBaseMaterial;
-	UMaterial* charReindMaterial;
-
 	FVector lerpStartPos;
 	float rewindLerpCurrentTime;
 	float rewindLerpInterval;

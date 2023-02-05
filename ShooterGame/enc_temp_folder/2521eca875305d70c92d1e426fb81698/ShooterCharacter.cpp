@@ -257,9 +257,6 @@ void AShooterCharacter::KilledBy(APawn* EventInstigator)
 
 float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser)
 {
-	UShooterCharacterMovement* movementComponent = Cast<UShooterCharacterMovement>(GetMovementComponent());
-	if (movementComponent->IsRewinding()) { return 0.f; }
-
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	if (MyPC && MyPC->HasGodMode())
 	{

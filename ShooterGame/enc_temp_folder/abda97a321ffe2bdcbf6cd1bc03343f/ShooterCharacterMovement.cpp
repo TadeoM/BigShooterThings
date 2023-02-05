@@ -2,7 +2,6 @@
 
 
 #include "ShooterCharacterMovement.h"
-#include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "Engine/Classes/Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -11,11 +10,6 @@
 
 UShooterCharacterMovement::UShooterCharacterMovement()
 {
-	static ConstructorHelpers::FObjectFinder<UMaterial> CharacterBaseMaterialOb(TEXT("/Characters/Materials/HeroTPP"));
-	static ConstructorHelpers::FObjectFinder<UMaterial> CharacterRewindingMaterialOb(TEXT("/Characters/Materials/HeroTPPRewinding"));
-	charBaseMaterial = CharacterBaseMaterialOb.Object;
-	charReindMaterial = CharacterRewindingMaterialOb.Object;
-
 	rewindLerpInterval = 0.1f;
 }
 void UShooterCharacterMovement::StartTeleport()
@@ -215,17 +209,10 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 
 #pragma region Entering State Handlers
 
-	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_REWIND))
+	/*if (IsCustomMovementMode(ECustomMovementMode::CMOVE_JETPACK))
 	{
-		TArray<UStaticMeshComponent*> Components;
-		GetOwner()->GetComponents<UStaticMeshComponent>(Components);
-		for (int32 i = 0; i < Components.Num(); i++)
-		{
-			UStaticMeshComponent* StaticMeshComponent = Components[i];
-			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			StaticMesh->SetMaterial()
-		}
-	}
+
+	}*/
 
 #pragma endregion
 	if (!suppressSuperNotification)
@@ -236,22 +223,7 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 
 float UShooterCharacterMovement::GetMaxSpeed() const
 {
-	float MaxSpeed = Super::GetMaxSpeed();
-
-	const AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(PawnOwner);
-	if (ShooterCharacterOwner)
-	{
-		if (ShooterCharacterOwner->IsTargeting())
-		{
-			MaxSpeed *= ShooterCharacterOwner->GetTargetingSpeedModifier();
-		}
-		if (ShooterCharacterOwner->IsRunning())
-		{
-			MaxSpeed *= ShooterCharacterOwner->GetRunningSpeedModifier();
-		}
-	}
-
-	return MaxSpeed;
+	return Super::GetMaxSpeed();
 }
 
 float UShooterCharacterMovement::GetMaxAcceleration() const

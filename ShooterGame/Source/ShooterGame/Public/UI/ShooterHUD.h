@@ -238,6 +238,13 @@ protected:
 	UPROPERTY()
 	FCanvasIcon PlaceIcon;
 
+	/** Rewind icon on the HUD. */
+	UPROPERTY()
+		FCanvasIcon RewindIcon;
+	/** Teleport icon on the HUD. */
+	UPROPERTY()
+		FCanvasIcon TeleportIcon;
+
 	/** UI scaling factor for other resolutions than Full HD. */
 	float ScaleUI;
 
@@ -333,6 +340,9 @@ protected:
 
 	/** Draws weapon HUD. */
 	void DrawWeaponHUD();
+
+	/** Draws abilities HUD. */
+	void DrawAbilityHUD();
 
 	/** Draws kills information. */
 	void DrawKills();

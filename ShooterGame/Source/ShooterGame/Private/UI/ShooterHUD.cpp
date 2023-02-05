@@ -37,8 +37,8 @@ AShooterHUD::AShooterHUD(const FObjectInitializer& ObjectInitializer) : Super(Ob
 	static ConstructorHelpers::FObjectFinder<UTexture2D> HUDMainTextureOb(TEXT("/Game/UI/HUD/HUDMain"));
 	static ConstructorHelpers::FObjectFinder<UTexture2D> HUDAssets02TextureOb(TEXT("/Game/UI/HUD/HUDAssets02"));
 	static ConstructorHelpers::FObjectFinder<UTexture2D> LowHealthOverlayTextureOb(TEXT("/Game/UI/HUD/LowHealthOverlay"));
-	static ConstructorHelpers::FObjectFinder<UTexture2D> RewindTextureOb(TEXT("/Game/UI/HUD/RewindIcon"));
-	static ConstructorHelpers::FObjectFinder<UTexture2D> TeleportTextureOb(TEXT("/Game/UI/HUD/TeleportIcon"));
+	static ConstructorHelpers::FObjectFinder<UTexture2D> RewindTextureOb(TEXT("/Game/UI/HUD/RewindTexture"));
+	static ConstructorHelpers::FObjectFinder<UTexture2D> TeleportTextureOb(TEXT("/Game/UI/HUD/TeleportTexture"));
 
 	// Fonts are not included in dedicated server builds.
 	#if !UE_SERVER
@@ -54,6 +54,8 @@ AShooterHUD::AShooterHUD(const FObjectInitializer& ObjectInitializer) : Super(Ob
 	HUDMainTexture = HUDMainTextureOb.Object;
 	HUDAssets02Texture = HUDAssets02TextureOb.Object;
 	LowHealthOverlayTexture = LowHealthOverlayTextureOb.Object;
+	RewindTexture = RewindTextureOb.Object;
+	TeleportTexture = TeleportTextureOb.Object;
 
 	HitNotifyIcon[EShooterHudPosition::Left] = UCanvas::MakeIcon(HitNotifyTexture,  158, 831, 585, 392);	
 	HitNotifyIcon[EShooterHudPosition::FrontLeft] = UCanvas::MakeIcon(HitNotifyTexture, 369, 434, 460, 378);	
@@ -78,6 +80,9 @@ AShooterHUD::AShooterHUD(const FObjectInitializer& ObjectInitializer) : Super(Ob
 	TimerIcon = UCanvas::MakeIcon(HUDMainTexture, 381, 93, 24, 24);
 	KilledIcon = UCanvas::MakeIcon(HUDMainTexture, 425, 92, 38, 36);
 	PlaceIcon = UCanvas::MakeIcon(HUDMainTexture, 250, 468, 21, 28);
+
+	RewindIcon = UCanvas::MakeIcon(RewindTexture, 0, 0, 64, 64);
+	TeleportIcon = UCanvas::MakeIcon(TeleportTexture, 0, 0, 64, 64);
 
 	Crosshair[EShooterCrosshairDirection::Left] = UCanvas::MakeIcon(HUDMainTexture, 43, 402, 25, 9); // left
 	Crosshair[EShooterCrosshairDirection::Right] = UCanvas::MakeIcon(HUDMainTexture, 88, 402, 25, 9); // right
@@ -321,6 +326,47 @@ void AShooterHUD::DrawWeaponHUD()
 		// END OF SECONDARY WEAPON
 	}
 }
+
+void AShooterHUD::DrawAbilityHUD()
+{
+	AShooterCharacter* MyPawn = CastChecked<AShooterCharacter>(GetOwningPawn());
+	UShooterCharacterMovement* movementComponent = Cast<UShooterCharacterMovement>(MyPawn->GetMovementComponent());
+	if (movementComponent)
+	{
+		const float PriWeapOffsetY = 200;
+		const float PriWeaponBoxWidth = 125;
+
+		
+		// Draw icons to be able to teleport/rewind if the player can
+		if (movementComponent->CanRewind())
+		{
+			const float RewindIconPosX = Canvas->ClipX - Canvas->OrgX - ((PriWeaponBoxWidth + RewindIcon.UL) / 2.0f + 2 * Offset) * ScaleUI;
+			const float RewindIconPosY = Canvas->ClipY - Canvas->OrgY - (PriWeapOffsetY + (RewindIcon.UL + RewindIcon.VL) / 2 + Offset) * ScaleUI;
+			
+			Canvas->DrawIcon(RewindIcon, RewindIconPosX - 64, RewindIconPosY, ScaleUI);
+		}
+		if (movementComponent->CanTeleport())
+		{
+			//Weapon draw position
+			const float TeleportIconPosX = Canvas->ClipX - Canvas->OrgX - ((PriWeaponBoxWidth + TeleportIcon.UL) / 2.0f + 2 * Offset) * ScaleUI;
+			const float TeleportIconPosY = Canvas->ClipY - Canvas->OrgY - (PriWeapOffsetY + (TeleportIcon.UL + TeleportIcon.VL) / 2 + Offset) * ScaleUI;
+
+			Canvas->DrawIcon(TeleportIcon, TeleportIconPosX + 64, TeleportIconPosY, ScaleUI);
+		}
+
+		// if the player is rewinding, add an visual effect in the UI
+		if (movementComponent->IsRewinding())
+		{
+			// Full screen low health overlay
+			Canvas->PopSafeZoneTransform();
+			FCanvasTileItem TileItem(FVector2D(0, 0), LowHealthOverlayTexture->Resource, FVector2D(Canvas->ClipX, Canvas->ClipY), FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
+			TileItem.BlendMode = SE_BLEND_Translucent;
+			Canvas->DrawItem(TileItem);
+			Canvas->ApplySafeZoneTransform();
+		}
+	}
+}
+
 
 void AShooterHUD::DrawHealth()
 {
@@ -647,6 +693,7 @@ void AShooterHUD::DrawHUD()
 		{
 			DrawHealth();
 			DrawWeaponHUD();
+			DrawAbilityHUD();
 		}
 		else
 		{
