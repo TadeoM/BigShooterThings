@@ -223,7 +223,7 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 		{
 			UStaticMeshComponent* StaticMeshComponent = Components[i];
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			StaticMesh->SetMaterial()
+			//StaticMesh->SetMaterial();
 		}
 	}
 
